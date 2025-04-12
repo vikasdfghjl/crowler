@@ -6,10 +6,12 @@ import { DisplayFile } from "@/types/api";
 import Header from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/Card";
 import { Button } from "@/components/Button";
+import JSZip from "jszip";
+import { saveAs } from "file-saver";
 
 export default function Home() {
   const [url, setUrl] = useState("");
-  const [fileExtensions, setFileExtensions] = useState<string[]>(["pdf", "doc", "docx", "xls", "xlsx"]);
+  const [fileExtensions, setFileExtensions] = useState<string[]>(["jpg", "jpeg"]);
   const [customExtension, setCustomExtension] = useState("");
   const [maxDepth, setMaxDepth] = useState(2);
   const [isLoading, setIsLoading] = useState(false);
@@ -34,6 +36,10 @@ export default function Home() {
   const [maxSize, setMaxSize] = useState(1000);
   const [minSizeUnit, setMinSizeUnit] = useState<'KB' | 'MB'>('KB');
   const [maxSizeUnit, setMaxSizeUnit] = useState<'KB' | 'MB'>('KB');
+  
+  // State for selected files for bulk download
+  const [selectedFiles, setSelectedFiles] = useState<DisplayFile[]>([]);
+  const [selectAll, setSelectAll] = useState(false);
 
   const extensionCategories = [
     { 
@@ -207,6 +213,87 @@ export default function Home() {
   // Function to close the preview modal
   const closePreview = () => {
     setPreviewImage(null);
+  };
+
+  // Helper function to toggle selection of a single file
+  const toggleFileSelection = (file: DisplayFile) => {
+    if (selectedFiles.includes(file)) {
+      setSelectedFiles(prev => prev.filter(f => f !== file));
+      // If we're deselecting any file, make sure selectAll is also turned off
+      setSelectAll(false);
+    } else {
+      setSelectedFiles(prev => [...prev, file]);
+      // Check if now all files are selected
+      if (results && results.files.length === selectedFiles.length + 1) {
+        setSelectAll(true);
+      }
+    }
+  };
+
+  // Helper function to toggle selection of all files
+  const toggleSelectAll = () => {
+    if (selectAll) {
+      setSelectedFiles([]);
+    } else {
+      setSelectedFiles(results?.files || []);
+    }
+    setSelectAll(!selectAll);
+  };
+
+  // Function to download multiple selected files
+  const downloadSelectedFiles = async () => {
+    if (!selectedFiles.length) return;
+    
+    // If only one file is selected, download it directly
+    if (selectedFiles.length === 1) {
+      const file = selectedFiles[0];
+      const link = document.createElement('a');
+      link.href = getProxyUrl(file.url);
+      link.download = file.filename;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+    
+    // For multiple files, create a ZIP archive
+    try {
+      const zip = new JSZip();
+      const fetchPromises = selectedFiles.map(file => 
+        fetch(getProxyUrl(file.url))
+          .then(response => response.blob())
+          .then(blob => {
+            zip.file(file.filename, blob);
+            return true;
+          })
+          .catch(error => {
+            console.error(`Failed to fetch file ${file.filename}:`, error);
+            return false;
+          })
+      );
+      
+      await Promise.all(fetchPromises);
+      
+      // Generate a name for the zip file including album name (website domain) + date + time
+      const websiteDomain = results?.crawlInfo?.baseUrl 
+        ? new URL(results.crawlInfo.baseUrl).hostname.replace('www.', '') 
+        : 'download';
+      
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+      const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-'); // HH-MM-SS
+      
+      const zipFilename = `${websiteDomain}_${dateStr}_${timeStr}.zip`;
+      
+      // Generate the zip file and trigger download
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      saveAs(zipBlob, zipFilename);
+      
+    } catch (error) {
+      console.error('Error creating ZIP file:', error);
+      alert('Failed to create ZIP archive. Please try again or download files individually.');
+    }
   };
 
   return (
@@ -482,6 +569,14 @@ export default function Home() {
                     <thead className="bg-muted/50">
                       <tr>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          <input
+                            type="checkbox"
+                            checked={selectAll}
+                            onChange={toggleSelectAll}
+                            className="h-4 w-4 text-accent border-border rounded focus:ring-accent"
+                          />
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                           File
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -501,6 +596,14 @@ export default function Home() {
                     <tbody className="bg-card divide-y divide-border">
                       {results.files.map((file, index) => (
                         <tr key={index} className="hover:bg-muted/50 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              checked={selectedFiles.includes(file)}
+                              onChange={() => toggleFileSelection(file)}
+                              className="h-4 w-4 text-accent border-border rounded focus:ring-accent"
+                            />
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm font-medium text-foreground truncate max-w-[150px] sm:max-w-xs">{file.filename}</div>
                           </td>
@@ -548,6 +651,58 @@ export default function Home() {
                     </tbody>
                   </table>
                 </div>
+                
+                {/* Bulk download actions */}
+                <div className="p-4 bg-muted/20 border-t border-border">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="text-sm text-muted-foreground">
+                      {selectedFiles.length === 0 ? (
+                        "No files selected"
+                      ) : (
+                        <span>Selected <strong>{selectedFiles.length}</strong> {selectedFiles.length === 1 ? 'file' : 'files'}</span>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setSelectedFiles([])}
+                        disabled={selectedFiles.length === 0}
+                      >
+                        Clear Selection
+                      </Button>
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        onClick={downloadSelectedFiles}
+                        disabled={selectedFiles.length === 0}
+                        className="flex items-center"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        Download Selected ({selectedFiles.length})
+                      </Button>
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        onClick={() => {
+                          setSelectedFiles(results.files);
+                          setSelectAll(true);
+                          setTimeout(() => {
+                            downloadSelectedFiles();
+                          }, 100);
+                        }}
+                        className="flex items-center"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        Download All Files ({results.files.length})
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -590,7 +745,7 @@ export default function Home() {
                     className="max-w-full max-h-[calc(90vh-8rem)] object-contain" 
                     onError={(e) => {
                       (e.target as HTMLImageElement).onerror = null;
-                      (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIj48L2NpcmNsZT48bGluZSB4MT0iNC45MyIgeTE9IjQuOTMiIHgyPSIxOS4wNyIgeTI9IjE5LjA3Ij48L2xpbmU+PC9zdmc+';
+                      (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJrZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiPjwvY2lyY2xlPjxsaW5lIHgxPSI0LjkzIiB5MT0iNC45MyIgeDI9IjE5LjA3IiB5Mj0iMTkuMDciPjwvbGluZT48L3N2Zz4=';
                     }}
                   />
                 </div>
