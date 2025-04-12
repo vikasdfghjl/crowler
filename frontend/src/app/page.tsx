@@ -8,6 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/Button";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
+import { Input } from "@/components/ui/Input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select";
+import { Switch } from "@/components/ui/Switch";
+import { Label } from "@/components/ui/Label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
+import { Checkbox } from "@/components/ui/Checkbox"; // Added Checkbox import
+import { CheckCircle, Globe, Search, Download, FileCheck, Filter, Settings } from "lucide-react";
 
 export default function Home() {
   const [url, setUrl] = useState("");
@@ -25,7 +32,8 @@ export default function Home() {
     };
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isExtensionDropdownOpen, setIsExtensionDropdownOpen] = useState(false);
+  // Change default to true so it shows on first load
+  const [isExtensionDropdownOpen, setIsExtensionDropdownOpen] = useState(true);
   // New state for image preview
   const [previewImage, setPreviewImage] = useState<{url: string, filename: string} | null>(null);
   
@@ -309,23 +317,27 @@ export default function Home() {
           
           <Card className="mb-8">
             <CardHeader>
-              <CardTitle>Crawl Website</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Search className="h-5 w-5 text-accent" />
+                Crawl Website
+              </CardTitle>
               <CardDescription>Enter a URL and select file types to discover</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
-                  <label htmlFor="url" className="block text-sm font-medium text-foreground mb-2">
+                  <Label htmlFor="url" className="block mb-2">
                     Website URL
-                  </label>
-                  <div className="relative rounded-md shadow-sm">
-                    <input
+                  </Label>
+                  <div className="relative flex items-center">
+                    <Globe className="absolute left-3 h-5 w-5 text-muted-foreground" />
+                    <Input
                       id="url"
                       type="text"
                       value={url}
                       onChange={(e) => setUrl(e.target.value)}
                       placeholder="Enter website URL (e.g., example.com)"
-                      className="block w-full px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-accent focus:border-accent bg-card text-foreground transition-colors"
+                      className="pl-10"
                     />
                   </div>
                 </div>
@@ -336,70 +348,105 @@ export default function Home() {
                       File Extensions to Crawl
                     </legend>
                     
-                    {extensionCategories.map((category) => (
-                      <div key={category.label} className="mb-4">
-                        <h3 className="text-sm font-medium text-foreground mb-2">{category.label}</h3>
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-                          {category.options.map((option) => (
-                            <div 
-                              key={option.value} 
-                              className={`flex items-center p-2 rounded-lg border ${
-                                option.value.split(',').some(v => fileExtensions.includes(v)) 
-                                  ? 'bg-accent/10 border-accent/30' 
-                                  : 'bg-card border-border hover:bg-muted'
-                              } cursor-pointer transition-colors`}
-                              onClick={() => handleExtensionChange(
-                                option.value, 
-                                !option.value.split(',').some(v => fileExtensions.includes(v))
-                              )}
-                            >
-                              <input
-                                id={`ext-${option.value}`}
-                                type="checkbox"
-                                className="h-4 w-4 text-accent border-border rounded focus:ring-accent"
-                                checked={option.value.split(',').some(v => fileExtensions.includes(v))}
-                                onChange={(e) => handleExtensionChange(option.value, e.target.checked)}
-                              />
-                              <label htmlFor={`ext-${option.value}`} className="ml-2 text-sm text-foreground cursor-pointer truncate">
-                                {option.label}
-                              </label>
-                            </div>
-                          ))}
+                    <div className="mb-4">
+                      <button
+                        type="button"
+                        onClick={() => setIsExtensionDropdownOpen(!isExtensionDropdownOpen)}
+                        className="flex items-center justify-between w-full px-4 py-3 border border-border rounded-md bg-card text-foreground transition-colors focus:ring-2 focus:ring-accent focus:border-accent hover:bg-muted/50"
+                      >
+                        <span className="flex items-center gap-2">
+                          <FileCheck className="h-5 w-5 text-muted-foreground" />
+                          <span>Select File Extensions</span>
+                        </span>
+                        <svg
+                          className={`w-5 h-5 transition-transform ${isExtensionDropdownOpen ? 'rotate-180' : ''}`}
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      
+                      {isExtensionDropdownOpen && (
+                        <div className="mt-4 space-y-4 rounded-md border border-border p-4 animate-in bg-card/50">
+                          <Tabs defaultValue="documents" className="w-full">
+                            <TabsList className="grid grid-cols-5 w-full mb-4">
+                              <TabsTrigger value="documents">Documents</TabsTrigger>
+                              <TabsTrigger value="images">Images</TabsTrigger>
+                              <TabsTrigger value="videos">Videos</TabsTrigger>
+                              <TabsTrigger value="audio">Audio</TabsTrigger>
+                              <TabsTrigger value="archives">Archives</TabsTrigger>
+                            </TabsList>
+                            {extensionCategories.map((category) => (
+                              <TabsContent key={category.label.toLowerCase()} value={category.label.toLowerCase()}>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                  {category.options.map((option) => (
+                                    <div 
+                                      key={option.value} 
+                                      className={`flex items-center p-3 rounded-md border transition-all ${
+                                        option.value.split(',').some(v => fileExtensions.includes(v)) 
+                                          ? 'bg-accent/10 border-accent shadow-sm' 
+                                          : 'bg-card border-border hover:bg-muted'
+                                      } cursor-pointer`}
+                                      onClick={() => handleExtensionChange(
+                                        option.value, 
+                                        !option.value.split(',').some(v => fileExtensions.includes(v))
+                                      )}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <div className="relative flex h-4 w-4 shrink-0 items-center justify-center rounded border border-border">
+                                          {option.value.split(',').some(v => fileExtensions.includes(v)) && (
+                                            <CheckCircle className="h-3 w-3 text-accent" />
+                                          )}
+                                        </div>
+                                        <label htmlFor={`ext-${option.value}`} className="text-sm cursor-pointer">
+                                          {option.label}
+                                        </label>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </TabsContent>
+                            ))}
+                          </Tabs>
                         </div>
-                      </div>
-                    ))}
+                      )}
+                    </div>
 
                     <div className="mt-4">
-                      <label htmlFor="customExtension" className="block text-sm font-medium text-foreground mb-2">
+                      <Label htmlFor="customExtension" className="block mb-2">
                         Add Custom Extension
-                      </label>
+                      </Label>
                       <div className="flex">
-                        <input
+                        <Input
                           id="customExtension"
                           type="text"
                           value={customExtension}
                           onChange={(e) => setCustomExtension(e.target.value)}
                           placeholder="e.g., csv"
-                          className="block w-full px-4 py-3 border border-border rounded-l-lg focus:ring-2 focus:ring-accent focus:border-accent bg-card text-foreground transition-colors"
+                          className="rounded-r-none"
                         />
-                        <button
+                        <Button
                           type="button"
                           onClick={handleAddCustomExtension}
-                          className="px-4 py-3 border border-border border-l-0 rounded-r-lg bg-accent text-white"
+                          className="rounded-l-none"
                         >
                           Add
-                        </button>
+                        </Button>
                       </div>
                     </div>
+                    
                     <div className="mt-4">
                       <div className="flex flex-wrap gap-2">
                         {fileExtensions.map((ext) => (
-                          <div key={ext} className="flex items-center px-3 py-1 bg-accent/10 text-accent rounded-full">
+                          <div key={ext} className="flex items-center px-3 py-1 bg-accent/10 text-accent border border-accent/20 rounded-full">
                             <span className="text-sm">{ext}</span>
                             <button
                               type="button"
                               onClick={() => handleRemoveExtension(ext)}
-                              className="ml-2 text-accent hover:text-accent-dark"
+                              className="ml-2 text-accent hover:text-accent-dark rounded-full h-4 w-4 inline-flex items-center justify-center"
                             >
                               &times;
                             </button>
@@ -411,111 +458,115 @@ export default function Home() {
                 </div>
                 
                 <div>
-                  <label htmlFor="maxDepth" className="block text-sm font-medium text-foreground mb-2">
+                  <Label htmlFor="maxDepth" className="block mb-2">
                     Maximum Crawl Depth
-                  </label>
-                  <select
-                    id="maxDepth"
-                    value={maxDepth}
-                    onChange={(e) => setMaxDepth(Number(e.target.value))}
-                    className="block w-full px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-accent focus:border-accent bg-card text-foreground transition-colors"
+                  </Label>
+                  <Select
+                    value={maxDepth.toString()}
+                    onValueChange={(value) => setMaxDepth(Number(value))}
                   >
-                    <option value={1}>1 - Homepage only</option>
-                    <option value={2}>2 - Homepage + linked pages (recommended)</option>
-                    <option value={3}>3 - Deep crawl (may take longer)</option>
-                  </select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select crawl depth" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1 - Homepage only</SelectItem>
+                      <SelectItem value="2">2 - Homepage + linked pages (recommended)</SelectItem>
+                      <SelectItem value="3">3 - Deep crawl (may take longer)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 
-                <div>
-                  <fieldset>
-                    <legend className="block text-sm font-medium text-foreground mb-3">
+                <div className="border border-border rounded-md p-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Filter className="h-5 w-5 text-muted-foreground" />
+                    <legend className="text-sm font-medium text-foreground">
                       File Size Filters
                     </legend>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Min file size filter */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <label htmlFor="minSize" className="flex items-center text-sm text-foreground">
-                            <span>Larger than</span>
-                          </label>
-                          <div className="flex items-center">
-                            <label className="inline-flex items-center cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={minSizeEnabled}
-                                onChange={(e) => setMinSizeEnabled(e.target.checked)}
-                                className="sr-only peer"
-                              />
-                              <div className="relative w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-focus:ring-2 peer-focus:ring-accent peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
-                              <span className="ml-1 text-sm font-medium text-foreground">{minSizeEnabled ? "On" : "Off"}</span>
-                            </label>
-                          </div>
-                        </div>
-                        <div className="flex">
-                          <input
-                            id="minSize"
-                            type="number"
-                            min={0}
-                            value={minSize}
-                            onChange={(e) => setMinSize(parseInt(e.target.value) || 0)}
-                            disabled={!minSizeEnabled}
-                            className="block w-full px-4 py-3 border border-border rounded-l-lg focus:ring-2 focus:ring-accent focus:border-accent bg-card text-foreground transition-colors disabled:opacity-50"
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Min file size filter */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="minSize" className="text-sm">
+                          Larger than
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">{minSizeEnabled ? "On" : "Off"}</span>
+                          <Switch
+                            id="min-size-toggle"
+                            checked={minSizeEnabled}
+                            onCheckedChange={setMinSizeEnabled}
                           />
-                          <select
-                            value={minSizeUnit}
-                            onChange={(e) => setMinSizeUnit(e.target.value as 'KB' | 'MB')}
-                            disabled={!minSizeEnabled}
-                            className="px-4 py-3 border border-border border-l-0 rounded-r-lg bg-card text-foreground transition-colors focus:ring-2 focus:ring-accent focus:border-accent disabled:opacity-50"
-                          >
-                            <option value="KB">KB</option>
-                            <option value="MB">MB</option>
-                          </select>
                         </div>
                       </div>
-                      
-                      {/* Max file size filter */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <label htmlFor="maxSize" className="flex items-center text-sm text-foreground">
-                            <span>Smaller than</span>
-                          </label>
-                          <div className="flex items-center">
-                            <label className="inline-flex items-center cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={maxSizeEnabled}
-                                onChange={(e) => setMaxSizeEnabled(e.target.checked)}
-                                className="sr-only peer"
-                              />
-                              <div className="relative w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-focus:ring-2 peer-focus:ring-accent peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
-                              <span className="ml-1 text-sm font-medium text-foreground">{maxSizeEnabled ? "On" : "Off"}</span>
-                            </label>
-                          </div>
-                        </div>
-                        <div className="flex">
-                          <input
-                            id="maxSize"
-                            type="number"
-                            min={0}
-                            value={maxSize}
-                            onChange={(e) => setMaxSize(parseInt(e.target.value) || 0)}
-                            disabled={!maxSizeEnabled}
-                            className="block w-full px-4 py-3 border border-border rounded-l-lg focus:ring-2 focus:ring-accent focus:border-accent bg-card text-foreground transition-colors disabled:opacity-50"
-                          />
-                          <select
-                            value={maxSizeUnit}
-                            onChange={(e) => setMaxSizeUnit(e.target.value as 'KB' | 'MB')}
-                            disabled={!maxSizeEnabled}
-                            className="px-4 py-3 border border-border border-l-0 rounded-r-lg bg-card text-foreground transition-colors focus:ring-2 focus:ring-accent focus:border-accent disabled:opacity-50"
-                          >
-                            <option value="KB">KB</option>
-                            <option value="MB">MB</option>
-                          </select>
-                        </div>
+                      <div className="flex">
+                        <Input
+                          id="minSize"
+                          type="number"
+                          min={0}
+                          value={minSize}
+                          onChange={(e) => setMinSize(parseInt(e.target.value) || 0)}
+                          disabled={!minSizeEnabled}
+                          className="rounded-r-none"
+                        />
+                        <Select 
+                          value={minSizeUnit}
+                          onValueChange={(value) => setMinSizeUnit(value as 'KB' | 'MB')}
+                          disabled={!minSizeEnabled}
+                        >
+                          <SelectTrigger className="w-24 rounded-l-none">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="KB">KB</SelectItem>
+                            <SelectItem value="MB">MB</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
-                  </fieldset>
+                    
+                    {/* Max file size filter */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="maxSize" className="text-sm">
+                          Smaller than
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">{maxSizeEnabled ? "On" : "Off"}</span>
+                          <Switch
+                            id="max-size-toggle"
+                            checked={maxSizeEnabled}
+                            onCheckedChange={setMaxSizeEnabled}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex">
+                        <Input
+                          id="maxSize"
+                          type="number"
+                          min={0}
+                          value={maxSize}
+                          onChange={(e) => setMaxSize(parseInt(e.target.value) || 0)}
+                          disabled={!maxSizeEnabled}
+                          className="rounded-r-none"
+                        />
+                        <Select 
+                          value={maxSizeUnit}
+                          onValueChange={(value) => setMaxSizeUnit(value as 'KB' | 'MB')}
+                          disabled={!maxSizeEnabled}
+                        >
+                          <SelectTrigger className="w-24 rounded-l-none">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="KB">KB</SelectItem>
+                            <SelectItem value="MB">MB</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 
                 <Button
@@ -523,9 +574,14 @@ export default function Home() {
                   isLoading={isLoading}
                   disabled={isLoading}
                   size="lg"
-                  className="w-full"
+                  className="w-full gap-2"
                 >
-                  {isLoading ? 'Crawling...' : 'Start Crawling'}
+                  {isLoading ? 'Crawling...' : (
+                    <>
+                      <Search className="h-4 w-4" />
+                      Start Crawling
+                    </>
+                  )}
                 </Button>
               </form>
             </CardContent>
@@ -550,7 +606,10 @@ export default function Home() {
             <Card className="mb-8">
               <CardHeader>
                 <div className="flex flex-col md:flex-row md:items-center justify-between">
-                  <CardTitle>Found {results.files.length} Files</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <Download className="h-5 w-5 text-accent" />
+                    Found {results.files.length} Files
+                  </CardTitle>
                   {results.crawlInfo && (
                     <div className="mt-2 md:mt-0 text-sm text-muted-foreground">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-accent/10 text-accent mr-2">
@@ -569,12 +628,14 @@ export default function Home() {
                     <thead className="bg-muted/50">
                       <tr>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                          <input
-                            type="checkbox"
-                            checked={selectAll}
-                            onChange={toggleSelectAll}
-                            className="h-4 w-4 text-accent border-border rounded focus:ring-accent"
-                          />
+                          <div className="flex items-center">
+                            <Checkbox 
+                              id="select-all"
+                              checked={selectAll}
+                              onCheckedChange={toggleSelectAll}
+                              aria-label="Select all files"
+                            />
+                          </div>
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                           File
@@ -597,11 +658,11 @@ export default function Home() {
                       {results.files.map((file, index) => (
                         <tr key={index} className="hover:bg-muted/50 transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <input
-                              type="checkbox"
+                            <Checkbox 
+                              id={`select-file-${index}`}
                               checked={selectedFiles.includes(file)}
-                              onChange={() => toggleFileSelection(file)}
-                              className="h-4 w-4 text-accent border-border rounded focus:ring-accent"
+                              onCheckedChange={() => toggleFileSelection(file)}
+                              aria-label={`Select ${file.filename}`}
                             />
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -621,10 +682,10 @@ export default function Home() {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center gap-2">
                               {isPreviewable(file.extension) && (
-                                <Button variant="outline" size="sm" onClick={() => openPreview(file)} className="flex items-center">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <Button variant="outline" size="sm" onClick={() => openPreview(file)} className="flex items-center gap-1">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                   </svg>
@@ -637,8 +698,8 @@ export default function Home() {
                                 rel="noopener noreferrer"
                                 download
                               >
-                                <Button variant="outline" size="sm">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <Button variant="outline" size="sm" className="flex items-center gap-1">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                                   </svg>
                                   Download
@@ -655,11 +716,15 @@ export default function Home() {
                 {/* Bulk download actions */}
                 <div className="p-4 bg-muted/20 border-t border-border">
                   <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-sm text-muted-foreground flex items-center gap-2">
                       {selectedFiles.length === 0 ? (
                         "No files selected"
                       ) : (
-                        <span>Selected <strong>{selectedFiles.length}</strong> {selectedFiles.length === 1 ? 'file' : 'files'}</span>
+                        <>
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-accent/10 text-accent">
+                            <strong>{selectedFiles.length}</strong> {selectedFiles.length === 1 ? 'file' : 'files'} selected
+                          </span>
+                        </>
                       )}
                     </div>
                     <div className="flex gap-2">
@@ -676,11 +741,9 @@ export default function Home() {
                         size="sm"
                         onClick={downloadSelectedFiles}
                         disabled={selectedFiles.length === 0}
-                        className="flex items-center"
+                        className="flex items-center gap-1"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                        </svg>
+                        <Download className="h-4 w-4" />
                         Download Selected ({selectedFiles.length})
                       </Button>
                       <Button 
@@ -693,11 +756,9 @@ export default function Home() {
                             downloadSelectedFiles();
                           }, 100);
                         }}
-                        className="flex items-center"
+                        className="flex items-center gap-1"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                        </svg>
+                        <Download className="h-4 w-4" />
                         Download All Files ({results.files.length})
                       </Button>
                     </div>
@@ -709,11 +770,11 @@ export default function Home() {
 
           {previewImage && (
             <div 
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 p-4"
               onClick={closePreview}
             >
               <div 
-                className="bg-card dark:bg-gray-800 rounded-lg overflow-hidden shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col"
+                className="bg-card border border-border rounded-lg overflow-hidden shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex justify-between items-center p-4 border-b border-border">
@@ -724,9 +785,7 @@ export default function Home() {
                       download={previewImage.filename}
                       className="text-accent hover:text-accent-dark p-2 rounded-full hover:bg-accent/10"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
+                      <Download className="h-5 w-5" />
                     </a>
                     <button 
                       onClick={closePreview} 
@@ -745,7 +804,7 @@ export default function Home() {
                     className="max-w-full max-h-[calc(90vh-8rem)] object-contain" 
                     onError={(e) => {
                       (e.target as HTMLImageElement).onerror = null;
-                      (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJrZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiPjwvY2lyY2xlPjxsaW5lIHgxPSI0LjkzIiB5MT0iNC45MyIgeDI9IjE5LjA3IiB5Mj0iMTkuMDciPjwvbGluZT48L3N2Zz4=';
+                      (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIj48L2NpcmNsZT48bGluZSB4MT0iNC45MyIgeTE9IjQuOTMiIHgyPSIxOS4wNyIgeTI9IjE5LjA3Ij48L2xpbmU+PC9zdmc+';
                     }}
                   />
                 </div>
@@ -755,18 +814,22 @@ export default function Home() {
           
           {!results && (
             <Card className="mb-8">
-              <CardContent className="text-center">
-                <svg className="mx-auto h-12 w-12 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <h3 className="mt-2 text-lg font-medium text-foreground">No files found</h3>
-                <p className="mt-1 text-muted-foreground">No files were found matching the selected criteria.</p>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <div className="h-24 w-24 rounded-full bg-muted/50 flex items-center justify-center mb-4">
+                  <svg className="h-12 w-12 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-medium text-foreground mb-1">Ready to find files</h3>
+                <p className="text-muted-foreground text-center max-w-sm">
+                  Enter a website URL above and select the file types you want to search for.
+                </p>
               </CardContent>
             </Card>
           )}
           
           <footer className="mt-12 text-center text-sm text-muted-foreground">
-            <p>Web File Crawler &copy; {new Date().getFullYear()}</p>
+            <p>Web File Crawler &copy; {new Date().getFullYear()} - Built with shadcn/ui</p>
           </footer>
         </div>
       </main>
