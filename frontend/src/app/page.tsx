@@ -26,6 +26,14 @@ export default function Home() {
   const [isExtensionDropdownOpen, setIsExtensionDropdownOpen] = useState(false);
   // New state for image preview
   const [previewImage, setPreviewImage] = useState<{url: string, filename: string} | null>(null);
+  
+  // File size filter states
+  const [minSizeEnabled, setMinSizeEnabled] = useState(false);
+  const [maxSizeEnabled, setMaxSizeEnabled] = useState(false);
+  const [minSize, setMinSize] = useState(100);
+  const [maxSize, setMaxSize] = useState(1000);
+  const [minSizeUnit, setMinSizeUnit] = useState<'KB' | 'MB'>('KB');
+  const [maxSizeUnit, setMaxSizeUnit] = useState<'KB' | 'MB'>('KB');
 
   const extensionCategories = [
     { 
@@ -121,12 +129,26 @@ export default function Home() {
       const crawlData = {
         url: formattedUrl,
         fileExtensions,
-        maxDepth
+        maxDepth,
+        sizeFilters: {
+          minSize: minSizeEnabled ? {
+            size: minSize,
+            unit: minSizeUnit
+          } : null,
+          maxSize: maxSizeEnabled ? {
+            size: maxSize,
+            unit: maxSizeUnit
+          } : null
+        }
       };
 
       const response = await crawlWebsite(crawlData);
+      
+      // Apply file size filters on the client side as well
+      const filteredFiles = filterFilesBySize(response.files);
+      
       setResults({
-        files: response.files,
+        files: filteredFiles,
         thumbnailConnections: response.thumbnailConnections,
         crawlInfo: {
           pagesVisited: response.files.length, // This is just a placeholder since we don't have actual crawlInfo
@@ -145,6 +167,33 @@ export default function Home() {
   const isPreviewable = (extension: string): boolean => {
     const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
     return imageExtensions.includes(extension.toLowerCase());
+  };
+
+  // Function to filter files by size
+  const filterFilesBySize = (files: DisplayFile[]): DisplayFile[] => {
+    if (!minSizeEnabled && !maxSizeEnabled) return files;
+    
+    return files.filter(file => {
+      // If file has no size property, we can't filter it
+      if (file.size === undefined) return true;
+      
+      // Convert filter sizes to bytes for comparison
+      const minSizeBytes = minSizeEnabled
+        ? minSizeUnit === 'KB' 
+          ? minSize * 1024
+          : minSize * 1024 * 1024
+        : 0;
+      
+      const maxSizeBytes = maxSizeEnabled
+        ? maxSizeUnit === 'KB'
+          ? maxSize * 1024
+          : maxSize * 1024 * 1024
+        : Infinity;
+      
+      // Check if file size is within the specified range
+      const fileSize = file.size;
+      return fileSize >= minSizeBytes && fileSize <= maxSizeBytes;
+    });
   };
 
   // Function to open the preview modal
@@ -288,6 +337,98 @@ export default function Home() {
                     <option value={2}>2 - Homepage + linked pages (recommended)</option>
                     <option value={3}>3 - Deep crawl (may take longer)</option>
                   </select>
+                </div>
+                
+                <div>
+                  <fieldset>
+                    <legend className="block text-sm font-medium text-foreground mb-3">
+                      File Size Filters
+                    </legend>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Min file size filter */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label htmlFor="minSize" className="flex items-center text-sm text-foreground">
+                            <span>Larger than</span>
+                          </label>
+                          <div className="flex items-center">
+                            <label className="inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={minSizeEnabled}
+                                onChange={(e) => setMinSizeEnabled(e.target.checked)}
+                                className="sr-only peer"
+                              />
+                              <div className="relative w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-focus:ring-2 peer-focus:ring-accent peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
+                              <span className="ml-1 text-sm font-medium text-foreground">{minSizeEnabled ? "On" : "Off"}</span>
+                            </label>
+                          </div>
+                        </div>
+                        <div className="flex">
+                          <input
+                            id="minSize"
+                            type="number"
+                            min={0}
+                            value={minSize}
+                            onChange={(e) => setMinSize(parseInt(e.target.value) || 0)}
+                            disabled={!minSizeEnabled}
+                            className="block w-full px-4 py-3 border border-border rounded-l-lg focus:ring-2 focus:ring-accent focus:border-accent bg-card text-foreground transition-colors disabled:opacity-50"
+                          />
+                          <select
+                            value={minSizeUnit}
+                            onChange={(e) => setMinSizeUnit(e.target.value as 'KB' | 'MB')}
+                            disabled={!minSizeEnabled}
+                            className="px-4 py-3 border border-border border-l-0 rounded-r-lg bg-card text-foreground transition-colors focus:ring-2 focus:ring-accent focus:border-accent disabled:opacity-50"
+                          >
+                            <option value="KB">KB</option>
+                            <option value="MB">MB</option>
+                          </select>
+                        </div>
+                      </div>
+                      
+                      {/* Max file size filter */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label htmlFor="maxSize" className="flex items-center text-sm text-foreground">
+                            <span>Smaller than</span>
+                          </label>
+                          <div className="flex items-center">
+                            <label className="inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={maxSizeEnabled}
+                                onChange={(e) => setMaxSizeEnabled(e.target.checked)}
+                                className="sr-only peer"
+                              />
+                              <div className="relative w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-focus:ring-2 peer-focus:ring-accent peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
+                              <span className="ml-1 text-sm font-medium text-foreground">{maxSizeEnabled ? "On" : "Off"}</span>
+                            </label>
+                          </div>
+                        </div>
+                        <div className="flex">
+                          <input
+                            id="maxSize"
+                            type="number"
+                            min={0}
+                            value={maxSize}
+                            onChange={(e) => setMaxSize(parseInt(e.target.value) || 0)}
+                            disabled={!maxSizeEnabled}
+                            className="block w-full px-4 py-3 border border-border rounded-l-lg focus:ring-2 focus:ring-accent focus:border-accent bg-card text-foreground transition-colors disabled:opacity-50"
+                          />
+                          <select
+                            value={maxSizeUnit}
+                            onChange={(e) => setMaxSizeUnit(e.target.value as 'KB' | 'MB')}
+                            disabled={!maxSizeEnabled}
+                            className="px-4 py-3 border border-border border-l-0 rounded-r-lg bg-card text-foreground transition-colors focus:ring-2 focus:ring-accent focus:border-accent disabled:opacity-50"
+                          >
+                            <option value="KB">KB</option>
+                            <option value="MB">MB</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </fieldset>
                 </div>
                 
                 <Button

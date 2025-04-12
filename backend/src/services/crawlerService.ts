@@ -71,7 +71,9 @@ export function extractBunkrCdnUrls(html: string, baseUrl: string, extensionList
 export async function crawlWebsite(
   website: string, 
   extensions: string[], 
-  crawlDepth: number = 0
+  crawlDepth: number = 0,
+  minSizeFilter: {size: number, unit: 'KB' | 'MB'} | null = null,
+  maxSizeFilter: {size: number, unit: 'KB' | 'MB'} | null = null
 ): Promise<{files: FileEntry[], thumbnailConnections: ThumbnailConnection[]}> {
   const extensionList = extensions.map(ext => ext.toLowerCase());
   const foundFiles: FileEntry[] = [];
@@ -526,8 +528,38 @@ export async function crawlWebsite(
     });
   });
   
+  // Apply file size filters if provided
+  let filteredFiles = processedFiles;
+  
+  if (minSizeFilter || maxSizeFilter) {
+    console.log('Applying file size filters...');
+    
+    // Convert size limits to bytes for comparison
+    const minSizeBytes = minSizeFilter ? 
+      (minSizeFilter.unit === 'KB' ? minSizeFilter.size * 1024 : minSizeFilter.size * 1024 * 1024) : 
+      0;
+      
+    const maxSizeBytes = maxSizeFilter ? 
+      (maxSizeFilter.unit === 'KB' ? maxSizeFilter.size * 1024 : maxSizeFilter.size * 1024 * 1024) : 
+      Infinity;
+    
+    console.log(`Min size: ${minSizeBytes} bytes, Max size: ${maxSizeBytes} bytes`);
+    
+    filteredFiles = processedFiles.filter(file => {
+      // If file has no size info, we can't filter it
+      if (file.size === undefined) return true;
+      
+      const fileSize = file.size;
+      const isWithinRange = fileSize >= minSizeBytes && fileSize <= maxSizeBytes;
+      
+      return isWithinRange;
+    });
+    
+    console.log(`File size filter applied: ${processedFiles.length} files -> ${filteredFiles.length} files`);
+  }
+  
   return { 
-    files: processedFiles,
+    files: filteredFiles,
     thumbnailConnections: Array.from(thumbnailConnections).map(([thumb, content]) => ({
       thumbnail: thumb,
       content

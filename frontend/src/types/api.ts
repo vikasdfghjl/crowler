@@ -8,6 +8,23 @@ export interface CrawlRequest {
   extensions: string[];
   /** Optional maximum depth for the crawler to traverse (default: 2) */
   crawlDepth?: number;
+  /** Optional file size filters */
+  sizeFilters?: {
+    /** Minimum file size filter */
+    minSize?: FileSizeFilter | null;
+    /** Maximum file size filter */
+    maxSize?: FileSizeFilter | null;
+  };
+}
+
+/**
+ * Interface for file size filter
+ */
+export interface FileSizeFilter {
+  /** Size value */
+  size: number;
+  /** Size unit (KB or MB) */
+  unit: 'KB' | 'MB';
 }
 
 /**

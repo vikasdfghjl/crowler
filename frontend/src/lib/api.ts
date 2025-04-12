@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { CrawlRequest, CrawlResponse, DisplayFile, FileEntry } from '@/types/api';
+import { CrawlRequest, CrawlResponse, DisplayFile, FileEntry, FileSizeFilter } from '@/types/api';
 
 /**
  * API client for communicating with the backend
@@ -21,13 +21,18 @@ export async function crawlWebsite(crawlData: {
   url: string;
   fileExtensions: string[];
   maxDepth?: number;
+  sizeFilters?: {
+    minSize?: { size: number; unit: 'KB' | 'MB' } | null;
+    maxSize?: { size: number; unit: 'KB' | 'MB' } | null;
+  };
 }): Promise<{ files: DisplayFile[], thumbnailConnections: any[] }> {
   try {
     // Transform from frontend format to backend format
     const backendRequest: CrawlRequest = {
       website: crawlData.url,
       extensions: crawlData.fileExtensions,
-      crawlDepth: crawlData.maxDepth
+      crawlDepth: crawlData.maxDepth,
+      sizeFilters: crawlData.sizeFilters
     };
     
     const response = await api.post<CrawlResponse>('/crawl', backendRequest);

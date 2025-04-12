@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { crawlWebsite as crawlWebsiteService } from '../services/crawlerService';
-import { CrawlRequest, FileEntry, ThumbnailConnection } from '../types';
+import { CrawlRequest, FileEntry, ThumbnailConnection, FileSizeFilter } from '../types';
 
 // Simple debug function to avoid import errors
 function logDebug(...args: any[]): void {
@@ -12,7 +12,7 @@ function logDebug(...args: any[]): void {
  */
 export const crawlWebsite = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { website, extensions, crawlDepth = 0 } = req.body as CrawlRequest;
+    const { website, extensions, crawlDepth = 0, sizeFilters } = req.body as CrawlRequest;
     
     if (!website) {
       res.status(400).json({ error: 'Website URL is required' });
@@ -27,9 +27,17 @@ export const crawlWebsite = async (req: Request, res: Response): Promise<void> =
     const maxDepth = parseInt(String(crawlDepth));
     logDebug(`Starting crawl of ${website} with max depth: ${maxDepth}`);
     
+    // Extract size filters if provided
+    const minSizeFilter = sizeFilters?.minSize || null;
+    const maxSizeFilter = sizeFilters?.maxSize || null;
+    
+    if (minSizeFilter || maxSizeFilter) {
+      logDebug(`Size filters applied - Min: ${JSON.stringify(minSizeFilter)}, Max: ${JSON.stringify(maxSizeFilter)}`);
+    }
+    
     // Use the statically imported service function
     try {
-      const result = await crawlWebsiteService(website, extensions, maxDepth);
+      const result = await crawlWebsiteService(website, extensions, maxDepth, minSizeFilter, maxSizeFilter);
       res.json(result);
     } catch (serviceError) {
       console.error('Error in crawler service:', serviceError);
